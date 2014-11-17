@@ -3,7 +3,7 @@
 if exists("current_compiler")
   finish
 endif
-let current_compiler = "lein"
+let current_compiler = "boot"
 
-CompilerSet makeprg=lein
+CompilerSet makeprg=boot
 CompilerSet errorformat=%+G

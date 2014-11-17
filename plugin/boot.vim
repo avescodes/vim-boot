@@ -1,10 +1,10 @@
-" Location: plugin/leiningen.vim
-" Author:   Tim Pope <http://tpo.pe/>
+" Location: plugin/boot.vim
+" Author:   Ryan Neufeld <http://rkn.io/>
 
-if exists('g:loaded_leiningen')
+if exists('g:loaded_boot')
   finish
 endif
-let g:loaded_leiningen = 1
+let g:loaded_boot = 1
 
 if !exists('g:classpath_cache')
   let g:classpath_cache = '~/.cache/vim/classpath'
@@ -15,12 +15,12 @@ if !isdirectory(expand(g:classpath_cache))
 endif
 
 function! s:portfile() abort
-  if !exists('b:leiningen_root')
+  if !exists('b:boot_root')
     return ''
   endif
 
-  let root = b:leiningen_root
-  let portfiles = [root.'/.nrepl-port', root.'/target/repl-port', root.'/target/repl/repl-port']
+  let root = b:boot_root
+  let portfiles = [root.'/.nrepl-port']
 
   for f in portfiles
     if getfsize(f) > 0
@@ -39,11 +39,11 @@ function! s:repl(background, args) abort
   let cd = exists('*haslocaldir') && haslocaldir() ? 'lcd' : 'cd'
   let cwd = getcwd()
   try
-    execute cd fnameescape(b:leiningen_root)
+    execute cd fnameescape(b:boot_root)
     if exists(':Start') == 2
       execute 'Start'.(a:background ? '!' : '') '-title='
-            \ . escape(fnamemodify(b:leiningen_root, ':t') . ' repl', ' ')
-            \ 'lein repl'.args
+            \ . escape(fnamemodify(b:boot_root, ':t') . ' repl', ' ')
+            \ 'boot repl'.args
       if get(get(g:, 'dispatch_last_start', {}), 'handler', 'headless') ==# 'headless'
         return
       endif
@@ -53,9 +53,9 @@ function! s:repl(background, args) abort
       echohl None
       return
     elseif has('win32')
-      execute '!start lein repl'.args
+      execute '!start boot repl'.args
     else
-      execute '!lein repl'.args
+      execute '!boot repl'.args
       return
     endif
   finally
@@ -71,29 +71,29 @@ function! s:repl(background, args) abort
 endfunction
 
 function! s:connect(autostart) abort
-  if !exists('b:leiningen_root') || !exists(':FireplaceConnect')
+  if !exists('b:boot_root') || !exists(':FireplaceConnect')
     return {}
   endif
   let portfile = s:portfile()
-  if !exists('g:leiningen_no_auto_repl') && a:autostart && empty(portfile) && exists(':Start') ==# 2
+  if !exists('g:boot_no_auto_repl') && a:autostart && empty(portfile) && exists(':Start') ==# 2
     call s:repl(1, '')
     let portfile = s:portfile()
   endif
 
   return empty(portfile) ? {} :
-        \ fireplace#register_port_file(portfile, b:leiningen_root)
+        \ fireplace#register_port_file(portfile, b:boot_root)
 endfunction
 
 function! s:detect(file) abort
-  if !exists('b:leiningen_root')
+  if !exists('b:boot_root')
     let root = simplify(fnamemodify(a:file, ':p:s?[\/]$??'))
     if !isdirectory(fnamemodify(root, ':h'))
       return ''
     endif
     let previous = ""
     while root !=# previous
-      if filereadable(root . '/project.clj') && join(readfile(root . '/project.clj', '', 50)) =~# '(\s*defproject'
-        let b:leiningen_root = root
+      if filereadable(root . '/build.boot')
+        let b:boot_root = root
         let b:java_root = root
         break
       endif
@@ -101,7 +101,7 @@ function! s:detect(file) abort
       let root = fnamemodify(root, ':h')
     endwhile
   endif
-  return exists('b:leiningen_root')
+  return exists('b:boot_root')
 endfunction
 
 function! s:split(path) abort
@@ -113,6 +113,8 @@ function! s:scrape_path(root) abort
   let cwd = getcwd()
   try
     execute cd fnameescape(a:root)
+    " TODO: implement in terms of boot
+    return []
     let path = matchstr(system('lein -o classpath'), "[^\n]*\\ze\n*$")
     if v:shell_error
       return []
@@ -126,17 +128,16 @@ endfunction
 function! s:path() abort
   let conn = s:connect(0)
 
-  let projts = getftime(b:leiningen_root.'/project.clj')
-  let profts = getftime(expand('~/.lein/profiles.clj'))
-  let cache = expand(g:classpath_cache . '/') . substitute(b:leiningen_root, '[:\/]', '%', 'g')
+  let projts = getftime(b:boot_root.'/build.boot')
+  let cache = expand(g:classpath_cache . '/') . substitute(b:boot_root, '[:\/]', '%', 'g')
 
   let ts = getftime(cache)
-  if ts > projts && ts > profts
+  if ts > projts
     let path = split(get(readfile(cache), 0, ''), ',')
 
   elseif has_key(conn, 'path')
     let ts = +get(conn.eval('(.getStartTime (java.lang.management.ManagementFactory/getRuntimeMXBean))', {'session': ''}), 'value', '-2000')[0:-4]
-    if ts > projts && ts > profts
+    if ts > projts
       let response = conn.eval(
             \ '[(System/getProperty "path.separator") (System/getProperty "java.class.path")]',
             \ {'session': ''})
@@ -146,9 +147,9 @@ function! s:path() abort
   endif
 
   if !exists('path')
-    let path = s:scrape_path(b:leiningen_root)
+    let path = s:scrape_path(b:boot_root)
     if empty(path)
-      let path = map(['test', 'src', 'dev-resources', 'resources'], 'b:leiningen_root."/".v:val')
+      let path = map(['test', 'src', 'dev-resources', 'resources'], 'b:boot_root."/".v:val')
     endif
     call writefile([join(path, ',')], cache)
   endif
@@ -157,12 +158,12 @@ function! s:path() abort
 endfunction
 
 function! s:activate() abort
-  if !exists('b:leiningen_root')
+  if !exists('b:boot_root')
     return
   endif
   command! -bar -bang -nargs=* Console call s:repl(<bang>0, <q-args>)
-  compiler lein
-  let &l:errorformat .= ',' . escape('chdir '.b:leiningen_root, '\,')
+  compiler boot
+  let &l:errorformat .= ',' . escape('chdir '.b:boot_root, '\,')
   let &l:errorformat .= ',' . escape('classpath,'.join(s:path()), '\,')
 endfunction
 
@@ -171,8 +172,8 @@ function! s:projectionist_detect() abort
     return
   endif
   let mypaths = map(filter(copy(s:path()),
-        \ 'strpart(v:val, 0, len(b:leiningen_root)) ==# b:leiningen_root'),
-        \ 'v:val[strlen(b:leiningen_root)+1:-1]')
+        \ 'strpart(v:val, 0, len(b:boot_root)) ==# b:boot_root'),
+        \ 'v:val[strlen(b:boot_root)+1:-1]')
   let projections = {}
   let main = []
   let test = []
@@ -192,8 +193,8 @@ function! s:projectionist_detect() abort
       let main += [path]
     endif
   endfor
-  let projections['*'] = {'start': 'lein run'}
-  call projectionist#append(b:leiningen_root, projections)
+  let projections['*'] = {'start': 'boot run'}
+  call projectionist#append(b:boot_root, projections)
   let projections = {}
 
   let proj = {'type': 'test', 'alternate': map(copy(main), 'v:val."/{}.clj"')}
@@ -219,10 +220,10 @@ function! s:projectionist_detect() abort
     endfor
     let projections[path.'/*.clj'] = proj
   endfor
-  call projectionist#append(b:leiningen_root, projections)
+  call projectionist#append(b:boot_root, projections)
 endfunction
 
-augroup leiningen
+augroup bootclj
   autocmd!
   autocmd User FireplacePreConnect call s:connect(1)
   autocmd FileType clojure
