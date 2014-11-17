@@ -1,6 +1,6 @@
-# leiningen.vim
+# boot.vim
 
-Static Vim support for [Leiningen][].
+Static Vim support for [Boot][].
 
 * `:Console` command to start a REPL or focus an existing instance if already
   running using [dispatch.vim][].
@@ -13,7 +13,7 @@ Static Vim support for [Leiningen][].
 * `'path'` is seeded with the classpath to enable certain static Vim and
   [fireplace.vim][] behaviors.
 
-[Leiningen]: http://leiningen.org/
+[Boot]: https://github.com/boot-clj/boot
 [fireplace.vim]: https://github.com/tpope/vim-fireplace
 [dispatch.vim]: https://github.com/tpope/vim-dispatch
 [projectionist.vim]: https://github.com/tpope/vim-projectionist
@@ -21,17 +21,24 @@ Static Vim support for [Leiningen][].
 ## Installation
 
 If you don't have a preferred installation method, I recommend
-installing [pathogen.vim](https://github.com/tpope/vim-pathogen), and
-then simply copy and paste:
+[NeoBundle](https://github.com/Shougo/neobundle.vim).
+
+```vim
+" In your .vimrc
+NeoBundle 'rkneufeld/vim-boot'
+```
+
+Others prefer [pathogen.vim](https://github.com/tpope/vim-pathogen). To
+install, simply copy and paste:
 
     cd ~/.vim/bundle
-    git clone git://github.com/tpope/vim-leiningen.git
+    git clone git://github.com/rkneufeld/vim-boot.git
     git clone git://github.com/tpope/vim-projectionist.git
     git clone git://github.com/tpope/vim-dispatch.git
     git clone git://github.com/tpope/vim-fireplace.git
 
 Once help tags have been generated, you can view the manual with
-`:help leiningen`.
+`:help boot`.
 
 ## FAQ
 
@@ -39,12 +46,22 @@ Once help tags have been generated, you can view the manual with
 
 Much of the functionality of leiningen.vim depends on knowing the classpath.
 When possible, this is retrieved from a [fireplace.vim][] connection, but if
-not, this means a call to `lein classpath`.
+not, this means a call to `boot classpath`.
 
-Once retrieved, the classpath is cached until `project.clj` or
-`~/.lein/profiles.clj` changes.
+You should add the following task to your build.boot:
+
+```clojure
+;; ...
+```
+
+Once retrieved, the classpath is cached until `boot.build` changes.
 
 ## License
 
-Copyright © Tim Pope.  Distributed under the same terms as Vim itself.
+Copyright © Ryan Neufeld.  Distributed under the same terms as Vim itself.
 See `:help license`.
+
+Special thanks to [@tpope](https://github.com/tpope) for creating the original
+[vim-leiningen](https://github.com/tpope/vim-leiningen), upon which this plugin
+is based.
+
