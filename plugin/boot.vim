@@ -139,7 +139,7 @@ function! s:path() abort
     let ts = +get(conn.eval('(.getStartTime (java.lang.management.ManagementFactory/getRuntimeMXBean))', {'session': ''}), 'value', '-2000')[0:-4]
     if ts > projts
       let response = conn.eval(
-            \ '[(System/getProperty "path.separator") (System/getProperty "java.class.path")]',
+            \ '[(System/getProperty "path.separator") (System/getProperty "fake.class.path")]',
             \ {'session': ''})
       let path = split(eval(response.value[5:-2]), response.value[2])
       call writefile([join(path, ',')], cache)
