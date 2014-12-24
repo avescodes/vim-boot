@@ -108,6 +108,8 @@ function! s:path() abort
           \ '[(System/getProperty "path.separator") (System/getProperty "fake.class.path")]',
           \ {'session': ''})
     let path = split(eval(response.value[5:-2]), response.value[2])
+  else 
+    let path = []
   endif
 
   return path
