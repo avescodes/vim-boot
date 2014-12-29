@@ -6,14 +6,6 @@ if exists('g:loaded_boot')
 endif
 let g:loaded_boot = 1
 
-if !exists('g:classpath_cache')
-  let g:classpath_cache = '~/.cache/vim/classpath'
-endif
-
-if !isdirectory(expand(g:classpath_cache))
-  call mkdir(expand(g:classpath_cache), 'p')
-endif
-
 function! s:portfile() abort
   if !exists('b:boot_root')
     return ''
@@ -108,50 +100,16 @@ function! s:split(path) abort
   return split(a:path, has('win32') ? ';' : ':')
 endfunction
 
-function! s:scrape_path(root) abort
-  let cd = exists('*haslocaldir') && haslocaldir() ? 'lcd' : 'cd'
-  let cwd = getcwd()
-  try
-    execute cd fnameescape(a:root)
-    " TODO: implement in terms of boot
-    return []
-    let path = matchstr(system('lein -o classpath'), "[^\n]*\\ze\n*$")
-    if v:shell_error
-      return []
-    endif
-    return s:split(path)
-  finally
-    execute cd fnameescape(cwd)
-  endtry
-endfunction
-
 function! s:path() abort
   let conn = s:connect(0)
 
-  let projts = getftime(b:boot_root.'/build.boot')
-  let cache = expand(g:classpath_cache . '/') . substitute(b:boot_root, '[:\/]', '%', 'g')
-
-  let ts = getftime(cache)
-  if ts > projts
-    let path = split(get(readfile(cache), 0, ''), ',')
-
-  elseif has_key(conn, 'path')
-    let ts = +get(conn.eval('(.getStartTime (java.lang.management.ManagementFactory/getRuntimeMXBean))', {'session': ''}), 'value', '-2000')[0:-4]
-    if ts > projts
-      let response = conn.eval(
-            \ '[(System/getProperty "path.separator") (System/getProperty "java.class.path")]',
-            \ {'session': ''})
-      let path = split(eval(response.value[5:-2]), response.value[2])
-      call writefile([join(path, ',')], cache)
-    endif
-  endif
-
-  if !exists('path')
-    let path = s:scrape_path(b:boot_root)
-    if empty(path)
-      let path = map(['test', 'src', 'dev-resources', 'resources'], 'b:boot_root."/".v:val')
-    endif
-    call writefile([join(path, ',')], cache)
+  if has_key(conn, 'path')
+    let response = conn.eval(
+          \ '[(System/getProperty "path.separator") (System/getProperty "fake.class.path")]',
+          \ {'session': ''})
+    let path = split(eval(response.value[5:-2]), response.value[2])
+  else 
+    let path = []
   endif
 
   return path
